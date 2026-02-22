@@ -16,6 +16,7 @@
         "fuzzingclient",
         "fuzzingserver",
         "Haddad",
+        "heapless",
         "httparse",
         "jadkhaddad",
         "linkall",

@@ -348,7 +348,7 @@ mod close_code;
 pub use close_code::CloseCode;
 
 mod close_frame;
-pub use close_frame::CloseFrame;
+pub use close_frame::{CloseFrame, OwnedCloseFrame};
 
 mod codec;
 use codec::FramesCodec;
@@ -368,7 +368,7 @@ pub mod http;
 mod mask;
 
 mod message;
-pub use message::Message;
+pub use message::{Message, OwnedMessage};
 
 #[doc(hidden)]
 pub mod mock;

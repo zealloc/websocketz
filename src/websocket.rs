@@ -1,3 +1,5 @@
+use core::cell::RefCell;
+
 use embedded_io_async::{Read, Write};
 use framez::{
     Framed,
@@ -6,9 +8,10 @@ use framez::{
 use rand::RngCore;
 
 use crate::{
-    FragmentsState, Frame, FramesCodec, Message, OnFrame, WebSocketCore,
+    FragmentsState, Frame, FramesCodec, Message, OnFrame, OwnedMessage, WebSocketCore,
     error::{Error, ProtocolError},
     http::{Request, Response},
+    next,
     options::{AcceptOptions, ConnectOptions},
 };
 
@@ -458,5 +461,43 @@ impl<'buf, RW, Rng> WebSocketWrite<'buf, RW, Rng> {
         Rng: RngCore,
     {
         self.core.send_fragmented(message, fragment_size).await
+    }
+}
+
+#[derive(Debug)]
+pub struct OwnedWebSocket<'buf, const N: usize, RW, Rng> {
+    // XXX: the idea of the refcell is to have a stream and a sink at the same time using the same core
+    // but this would panic when using select on the stream and then using the sink to send a message, because the stream would have a mutable reference to the core and then the sink would try to borrow it again.
+    // See clippy warning
+    // I think we can only have a stream or a sink at a time, mutably borrowing the core
+    core: RefCell<WebSocket<'buf, RW, Rng>>,
+}
+
+impl<'buf, const N: usize, RW, Rng> OwnedWebSocket<'buf, N, RW, Rng>
+where
+    RW: Read + Write,
+    Rng: RngCore,
+{
+    pub async fn next(
+        &self,
+    ) -> Option<Result<Result<OwnedMessage<N>, heapless::CapacityError>, Error<RW::Error>>> {
+        let mut websocket = self.core.borrow_mut();
+
+        match 'next: loop {
+            match websocket
+                .caller()
+                .call_next::<N, _, _, _>(websocket.auto(), &mut websocket.core)
+                .await
+            {
+                Some(Ok(None)) => continue 'next,
+                Some(Ok(Some(item))) => break 'next Some(Ok(item)),
+                Some(Err(err)) => break 'next Some(Err(err)),
+                None => break 'next None,
+            }
+        } {
+            None => None,
+            Some(Ok(msg)) => Some(Ok(msg)),
+            Some(Err(err)) => Some(Err(err)),
+        }
     }
 }

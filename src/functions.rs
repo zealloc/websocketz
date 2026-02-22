@@ -3,7 +3,7 @@ use framez::state::{ReadState, WriteState};
 use rand::RngCore;
 
 use crate::{
-    ConnectionState, Frame, Message, OnFrame, WebSocketCore,
+    ConnectionState, Frame, Message, OnFrame, OwnedMessage, WebSocketCore,
     codec::FramesCodec,
     error::{Error, ProtocolError, ReadError, WriteError},
     websocket_core::FragmentsState,
@@ -56,6 +56,64 @@ impl ReadAutoCaller {
 
         WebSocketCore::<RW, Rng>::on_frame(fragments_state, frame)
             .map(|result| result.map_err(Error::from))
+    }
+
+    // TODO: see comments in on WebSocket::next()
+    // TODO: delete
+    #[allow(clippy::too_many_arguments)]
+    pub async fn call_next<const N: usize, F, RW, Rng>(
+        &self,
+        auto: F,
+        websocket: &mut WebSocketCore<'_, RW, Rng>,
+    ) -> Option<Result<Option<Result<OwnedMessage<N>, heapless::CapacityError>>, Error<RW::Error>>>
+    where
+        RW: Read + Write,
+        Rng: RngCore,
+        F: FnOnce(Frame<'_>) -> Result<OnFrame<'_>, ProtocolError> + 'static,
+    {
+        let frame = match framez::functions::maybe_next(
+            &mut websocket.framed.core.state.read,
+            &mut websocket.framed.core.codec,
+            &mut websocket.framed.core.inner,
+        )
+        .await
+        {
+            Some(Ok(Some(frame))) => frame,
+            Some(Ok(None)) => return Some(Ok(None)),
+            Some(Err(err)) => return Some(Err(Error::Read(ReadError::ReadFrame(err)))),
+            None => return None,
+        };
+
+        let frame = match auto(frame) {
+            Ok(on_frame) => match on_frame {
+                OnFrame::Send(message) => {
+                    websocket.state.closed = message.is_close();
+
+                    match framez::functions::send(
+                        &mut websocket.framed.core.state.write,
+                        &mut websocket.framed.core.codec,
+                        &mut websocket.framed.core.inner,
+                        message,
+                    )
+                    .await
+                    {
+                        Ok(_) => match websocket.state.closed {
+                            false => return Some(Ok(None)),
+                            true => return None,
+                        },
+                        Err(err) => return Some(Err(Error::Write(WriteError::WriteFrame(err)))),
+                    }
+                }
+                OnFrame::Noop(frame) => frame,
+            },
+            Err(err) => return Some(Err(Error::Read(ReadError::Protocol(err)))),
+        };
+
+        WebSocketCore::<RW, Rng>::on_frame(&mut websocket.fragments_state, frame).map(|result| {
+            result
+                .map(|opt| opt.map(OwnedMessage::<N>::try_from))
+                .map_err(Error::from)
+        })
     }
 }
 

@@ -1,4 +1,7 @@
-use crate::{CloseFrame, Frame, OpCode, error::FragmentationError, fragments::FragmentsIterator};
+use crate::{
+    CloseFrame, Frame, OpCode, OwnedCloseFrame, error::FragmentationError,
+    fragments::FragmentsIterator,
+};
 
 /// A WebSocket message.
 #[derive(Debug)]
@@ -119,6 +122,43 @@ impl<'a> Message<'a> {
                 fragment_size,
             )),
             _ => Err(FragmentationError::CanNotBeFragmented),
+        }
+    }
+}
+
+/// An owned WebSocket message.
+#[derive(Debug)]
+pub enum OwnedMessage<const N: usize> {
+    /// A text WebSocket message
+    Text(heapless::String<N>),
+    /// A binary WebSocket message
+    Binary(heapless::Vec<u8, N>),
+    /// A ping message with the specified payload
+    ///
+    /// The payload here must have a length less than 125 bytes
+    Ping(heapless::Vec<u8, N>),
+    /// A pong message with the specified payload
+    ///
+    /// The payload here must have a length less than 125 bytes
+    Pong(heapless::Vec<u8, N>),
+    /// A close message with the optional close frame.
+    Close(Option<OwnedCloseFrame<N>>),
+}
+
+impl<const N: usize> TryFrom<Message<'_>> for OwnedMessage<N> {
+    type Error = heapless::CapacityError;
+
+    fn try_from(value: Message<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Message::Text(payload) => Ok(Self::Text(heapless::String::try_from(payload)?)),
+            Message::Binary(payload) => Ok(Self::Binary(heapless::Vec::try_from(payload)?)),
+            Message::Ping(payload) => Ok(Self::Ping(heapless::Vec::try_from(payload)?)),
+            Message::Pong(payload) => Ok(Self::Pong(heapless::Vec::try_from(payload)?)),
+            Message::Close(Some(frame)) => Ok(Self::Close(Some(OwnedCloseFrame::new(
+                frame.code(),
+                heapless::String::try_from(frame.reason())?,
+            )))),
+            Message::Close(None) => Ok(Self::Close(None)),
         }
     }
 }
