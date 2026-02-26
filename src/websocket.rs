@@ -1,17 +1,16 @@
-use core::cell::RefCell;
-
+use embassy_sync::{blocking_mutex::raw::RawMutex, mutex::Mutex};
 use embedded_io_async::{Read, Write};
 use framez::{
     Framed,
     state::{ReadState, ReadWriteState, WriteState},
 };
+use futures::{Sink, Stream};
 use rand::RngCore;
 
 use crate::{
     FragmentsState, Frame, FramesCodec, Message, OnFrame, OwnedMessage, WebSocketCore,
     error::{Error, ProtocolError},
     http::{Request, Response},
-    next,
     options::{AcceptOptions, ConnectOptions},
 };
 
@@ -309,6 +308,16 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     pub const fn caller(&self) -> crate::functions::ReadAutoCaller {
         crate::functions::ReadAutoCaller
     }
+
+    /// TODO
+    pub fn owned<const N: usize, M>(self) -> OwnedWebSocket<'buf, N, RW, Rng, M>
+    where
+        M: RawMutex,
+    {
+        OwnedWebSocket {
+            inner: Mutex::new(self),
+        }
+    }
 }
 
 /// Read half of a WebSocket connection.
@@ -465,28 +474,25 @@ impl<'buf, RW, Rng> WebSocketWrite<'buf, RW, Rng> {
 }
 
 #[derive(Debug)]
-pub struct OwnedWebSocket<'buf, const N: usize, RW, Rng> {
-    // XXX: the idea of the refcell is to have a stream and a sink at the same time using the same core
-    // but this would panic when using select on the stream and then using the sink to send a message, because the stream would have a mutable reference to the core and then the sink would try to borrow it again.
-    // See clippy warning
-    // I think we can only have a stream or a sink at a time, mutably borrowing the core
-    core: RefCell<WebSocket<'buf, RW, Rng>>,
+pub struct OwnedWebSocket<'buf, const N: usize, RW, Rng, Mtx: RawMutex> {
+    inner: Mutex<Mtx, WebSocket<'buf, RW, Rng>>,
 }
 
-impl<'buf, const N: usize, RW, Rng> OwnedWebSocket<'buf, N, RW, Rng>
+impl<'buf, const N: usize, RW, Rng, Mtx> OwnedWebSocket<'buf, N, RW, Rng, Mtx>
 where
     RW: Read + Write,
     Rng: RngCore,
+    Mtx: RawMutex,
 {
     pub async fn next(
         &self,
     ) -> Option<Result<Result<OwnedMessage<N>, heapless::CapacityError>, Error<RW::Error>>> {
-        let mut websocket = self.core.borrow_mut();
+        let mut websocket = self.inner.lock().await;
 
         match 'next: loop {
             match websocket
                 .caller()
-                .call_next::<N, _, _, _>(websocket.auto(), &mut websocket.core)
+                .call_owned::<N, _, _, _>(websocket.auto(), &mut websocket.core)
                 .await
             {
                 Some(Ok(None)) => continue 'next,
@@ -499,5 +505,46 @@ where
             Some(Ok(msg)) => Some(Ok(msg)),
             Some(Err(err)) => Some(Err(err)),
         }
+    }
+
+    pub async fn send(&self, message: Message<'_>) -> Result<(), Error<RW::Error>> {
+        let mut websocket = self.inner.lock().await;
+
+        websocket.send(message).await
+    }
+
+    pub fn stream(
+        &self,
+    ) -> impl Stream<
+        Item = Result<Result<OwnedMessage<N>, heapless::CapacityError>, Error<RW::Error>>,
+    > + '_ {
+        futures::stream::unfold((self, false), move |(this, errored)| async move {
+            if errored {
+                return None;
+            }
+
+            match this.next().await {
+                Some(Ok(item)) => Some((Ok(item), (this, false))),
+                Some(Err(err)) => Some((Err(err), (this, true))),
+                None => None,
+            }
+        })
+    }
+
+    pub fn sink(&self) -> impl Sink<Message<'_>, Error = Error<RW::Error>> + '_ {
+        futures::sink::unfold(self, |this, item: Message<'_>| async move {
+            this.send(item).await?;
+
+            Ok(this)
+        })
+    }
+
+    pub fn split(
+        &self,
+    ) -> (
+        impl Stream<Item = Result<Result<OwnedMessage<N>, heapless::CapacityError>, Error<RW::Error>>>,
+        impl Sink<Message<'_>, Error = Error<RW::Error>>,
+    ) {
+        (self.stream(), self.sink())
     }
 }

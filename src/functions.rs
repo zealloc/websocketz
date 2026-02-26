@@ -61,7 +61,7 @@ impl ReadAutoCaller {
     // TODO: see comments in on WebSocket::next()
     // TODO: delete
     #[allow(clippy::too_many_arguments)]
-    pub async fn call_next<const N: usize, F, RW, Rng>(
+    pub async fn call_owned<const N: usize, F, RW, Rng>(
         &self,
         auto: F,
         websocket: &mut WebSocketCore<'_, RW, Rng>,
