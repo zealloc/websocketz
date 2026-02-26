@@ -54,11 +54,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (stream, sink) = websocketz.split();
     let (mut stream, mut sink) = (pin!(stream), pin!(sink));
 
-    sink.send(Message::Text("Hello, WebSocket!")).await?;
+    // sink.send(Message::Text("Hello, WebSocket!")).await?;
 
     loop {
         tokio::select! {
-            msg = stream.next() => match msg.transpose()? {
+            msg = PrintFuture::new(websocketz.next()) => match msg.transpose()? {
                 None => {
                     println!("EOF");
 
@@ -79,4 +79,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+pin_project_lite::pin_project! {
+    pub struct PrintFuture<F> {
+        #[pin]
+        future: F,
+    }
+
+    impl<F> PinnedDrop for PrintFuture<F> {
+        fn drop(this: Pin<&mut Self>) {
+            println!("Dropping PrintFuture");
+        }
+    }
+
+
+}
+
+impl<F> PrintFuture<F> {
+    pub fn new(future: F) -> Self {
+        Self { future }
+    }
+}
+
+impl<F: std::future::Future> std::future::Future for PrintFuture<F> {
+    type Output = F::Output;
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        println!("Polling future...");
+
+        self.project().future.poll(cx)
+    }
 }

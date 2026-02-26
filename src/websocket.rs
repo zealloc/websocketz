@@ -1,3 +1,5 @@
+use core::ops::{Deref, DerefMut};
+
 use embassy_sync::{blocking_mutex::raw::RawMutex, mutex::Mutex};
 use embedded_io_async::{Read, Write};
 use framez::{
@@ -478,6 +480,58 @@ pub struct OwnedWebSocket<'buf, const N: usize, RW, Rng, Mtx: RawMutex> {
     inner: Mutex<Mtx, WebSocket<'buf, RW, Rng>>,
 }
 
+pub struct MutexG<'a, M, T>
+where
+    M: RawMutex,
+    T: ?Sized,
+{
+    guard: embassy_sync::mutex::MutexGuard<'a, M, T>,
+}
+
+impl<'a, M, T> MutexG<'a, M, T>
+where
+    M: RawMutex,
+    T: ?Sized,
+{
+    pub fn new(guard: embassy_sync::mutex::MutexGuard<'a, M, T>) -> Self {
+        Self { guard }
+    }
+}
+
+extern crate std;
+
+impl<'a, M, T> Drop for MutexG<'a, M, T>
+where
+    M: RawMutex,
+    T: ?Sized,
+{
+    fn drop(&mut self) {
+        std::println!("Dropping MutexG");
+    }
+}
+
+impl<'a, M, T> Deref for MutexG<'a, M, T>
+where
+    M: RawMutex,
+    T: ?Sized,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.guard.deref()
+    }
+}
+
+impl<'a, M, T> DerefMut for MutexG<'a, M, T>
+where
+    M: RawMutex,
+    T: ?Sized,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.guard.deref_mut()
+    }
+}
+
 impl<'buf, const N: usize, RW, Rng, Mtx> OwnedWebSocket<'buf, N, RW, Rng, Mtx>
 where
     RW: Read + Write,
@@ -487,7 +541,9 @@ where
     pub async fn next(
         &self,
     ) -> Option<Result<Result<OwnedMessage<N>, heapless::CapacityError>, Error<RW::Error>>> {
-        let mut websocket = self.inner.lock().await;
+        std::println!("Got guard in next");
+
+        let mut websocket = MutexG::new(self.inner.lock().await);
 
         match 'next: loop {
             match websocket
@@ -508,11 +564,15 @@ where
     }
 
     pub async fn send(&self, message: Message<'_>) -> Result<(), Error<RW::Error>> {
-        let mut websocket = self.inner.lock().await;
+        let mut websocket = MutexG::new(self.inner.lock().await);
+
+        std::println!("Got guard in send");
 
         websocket.send(message).await
     }
 
+    // XXX: this one dead locks. see owned.rs example.
+    // The other variant that does not use the stream does not block.
     pub fn stream(
         &self,
     ) -> impl Stream<

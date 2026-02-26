@@ -880,6 +880,7 @@ dependencies = [
  "httparse",
  "hyper",
  "hyper-util",
+ "pin-project-lite",
  "rand 0.9.1",
  "rand_core 0.9.3",
  "sha1",
