@@ -13,15 +13,15 @@ keywords = ["no_std", "embedded", "websockets", "zerocopy"]
 [dependencies]
 framez = { version = "0.4", default-features = false }
 embedded-io-async = { version = "0.7", default-features = false }
-rand_core = { version = "0.9", default-features = false }
-rand = { version = "0.9", default-features = false }
+rand_core = { version = "0.10", default-features = false }
+rand = { version = "0.10", default-features = false }
 thiserror = { version = "2", default-features = false }
 httparse = { version = "1", default-features = false }
 base64 = { version = "0.22", default-features = false }
 sha1 = { version = "0.10", default-features = false }
 
 [dev-dependencies]
-rand = { version = "0.9", features = ["std_rng"] }
+rand = { version = "0.10", features = ["std_rng"] }
 embedded-io-adapters = { version = "0.7", default-features = false, features = [
     "tokio-1",
 ] }

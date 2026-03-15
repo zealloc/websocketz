@@ -10,7 +10,10 @@ use std::time::Duration;
 
 use embedded_io_adapters::tokio_1::FromTokio;
 use httparse::Header;
-use rand::{SeedableRng, rngs::StdRng};
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 use tokio::net::TcpStream;
 use websocketz::{Message, WebSocket, http::Response, next, options::ConnectOptions};
 
@@ -25,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let read_buf = &mut [0u8; 8192];
     let write_buf = &mut [0u8; 8192];
     let fragments_buf = &mut [0u8; 8192];
-    let rng = StdRng::from_os_rng();
+    let rng = StdRng::try_from_rng(&mut SysRng).unwrap();
 
     let (mut websocketz, custom) = WebSocket::connect_with(
         ConnectOptions::default()

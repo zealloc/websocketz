@@ -5,7 +5,10 @@
 //! ```
 
 use embedded_io_adapters::tokio_1::FromTokio;
-use rand::{SeedableRng, rngs::StdRng};
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 use tokio::net::TcpStream;
 use websocketz::{
     CloseCode, CloseFrame, Message, WebSocket, http::Header, next, options::ConnectOptions, send,
@@ -28,7 +31,7 @@ async fn connect<'buf>(
     let websocketz = WebSocket::connect::<16>(
         ConnectOptions::new_unchecked(path).with_headers(headers),
         FromTokio::new(stream),
-        StdRng::from_os_rng(),
+        StdRng::try_from_rng(&mut SysRng).unwrap(),
         read_buf,
         write_buf,
         fragments_buf,

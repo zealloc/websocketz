@@ -5,7 +5,10 @@
 //! ```
 
 use embedded_io_adapters::tokio_1::FromTokio;
-use rand::{SeedableRng, rngs::StdRng};
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 use tokio::{
     io::{ReadHalf, WriteHalf},
     net::TcpStream,
@@ -30,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let read_buf = &mut [0u8; 8192 * 2];
     let write_buf = &mut [0u8; 8192 * 2];
     let fragments_buf = &mut [0u8; 8192 * 2];
-    let rng = StdRng::from_os_rng();
+    let rng = StdRng::try_from_rng(&mut SysRng).unwrap();
 
     let websocketz = WebSocket::connect::<16>(
         ConnectOptions::default(),
