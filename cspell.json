@@ -23,6 +23,7 @@
         "nextest",
         "nostartfiles",
         "println",
+        "reborrow",
         "reportfile",
         "repr",
         "rngs",
