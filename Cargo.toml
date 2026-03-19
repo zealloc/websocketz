@@ -1,6 +1,6 @@
 [package]
 name = "websocketz"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85.1"
 authors = ["Jad K. Haddad <jadkhaddad@gmail.com>"]
