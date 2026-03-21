@@ -2,10 +2,10 @@
 //!
 //! # Traits
 //!
-//! This library is based on [`embedded_io_async`](https://docs.rs/embedded-io-async/latest/embedded_io_async/)'s
-//! [`Read`](https://docs.rs/embedded-io-async/latest/embedded_io_async/trait.Read.html) and [`Write`](https://docs.rs/embedded-io-async/latest/embedded_io_async/trait.Write.html) and [`rand_core`](https://docs.rs/rand_core/latest/rand_core/)'s [`RngCore`](https://docs.rs/rand_core/latest/rand_core/trait.RngCore.html) traits.
+//! This library is based on [`embedded_io_async`](https://docs.rs/embedded-io-async/0.7/embedded_io_async/)'s
+//! [`Read`](https://docs.rs/embedded-io-async/0.7/embedded_io_async/trait.Read.html) and [`Write`](https://docs.rs/embedded-io-async/0.7/embedded_io_async/trait.Write.html) and [`rand_core`](https://docs.rs/rand_core/0.10/rand_core/)'s [`Rng`](https://docs.rs/rand_core/0.10/rand_core/trait.Rng.html) traits.
 //!
-//! It's recommended to use [`embedded_io_adapters`](https://docs.rs/embedded-io-adapters/0.6.1/embedded_io_adapters/) if you are using other async `Read` and `Write` traits like [`tokio`](https://docs.rs/tokio/latest/tokio/index.html)'s [`AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html).
+//! It's recommended to use [`embedded_io_adapters`](https://docs.rs/embedded-io-adapters/0.7/embedded_io_adapters/) if you are using other async `Read` and `Write` traits like [`tokio`](https://docs.rs/tokio/1.0/tokio/index.html)'s [`AsyncRead`](https://docs.rs/tokio/1.0/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/1.0/tokio/io/trait.AsyncWrite.html).
 //!
 //! See the examples folder for more information.
 //!
@@ -13,7 +13,7 @@
 //!
 //! In the following examples, `Noop` is a mock type that implements the required traits for using a [`WebSocket`].
 //! - A `stream` is anything that implements [`embedded_io_async::Read`] + [`embedded_io_async::Write`].
-//! - An `rng` is anything that implements [`rand_core::RngCore`].
+//! - An `rng` is anything that implements [`rand_core::Rng`].
 //!
 //! ### Client
 //! ```

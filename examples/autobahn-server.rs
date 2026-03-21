@@ -5,7 +5,10 @@
 //! ```
 
 use embedded_io_adapters::tokio_1::FromTokio;
-use rand::{SeedableRng, rngs::StdRng};
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 use tokio::net::TcpListener;
 use websocketz::{Message, WebSocket, error::Error, next, options::AcceptOptions, send};
 
@@ -27,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut websocketz = WebSocket::accept::<16>(
                 AcceptOptions::default(),
                 FromTokio::new(stream),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 &mut read_buf,
                 &mut write_buf,
                 &mut fragments_buf,

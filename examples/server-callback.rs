@@ -7,7 +7,10 @@
 
 use embedded_io_adapters::tokio_1::FromTokio;
 use httparse::Header;
-use rand::{SeedableRng, rngs::StdRng};
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 use tokio::net::TcpListener;
 use websocketz::{Message, WebSocket, http::Request, next, options::AcceptOptions};
 
@@ -38,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         value: b"Server-Value",
                     }]),
                 FromTokio::new(stream),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 &mut read_buf,
                 &mut write_buf,
                 &mut fragments_buf,

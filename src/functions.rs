@@ -1,6 +1,6 @@
 use embedded_io_async::{Read, Write};
 use framez::state::{ReadState, WriteState};
-use rand::RngCore;
+use rand_core::Rng;
 
 use crate::{
     ConnectionState, Frame, Message, OnFrame, WebSocketCore,
@@ -14,10 +14,10 @@ pub struct ReadAutoCaller;
 
 impl ReadAutoCaller {
     #[allow(clippy::too_many_arguments)]
-    pub async fn call<'this, F, RW, Rng>(
+    pub async fn call<'this, F, RW, RNG>(
         &self,
         auto: F,
-        codec: &mut FramesCodec<Rng>,
+        codec: &mut FramesCodec<RNG>,
         inner: &mut RW,
         read_state: &'this mut ReadState<'_>,
         write_state: &mut WriteState<'_>,
@@ -26,7 +26,7 @@ impl ReadAutoCaller {
     ) -> Option<Result<Option<Message<'this>>, Error<RW::Error>>>
     where
         RW: Read + Write,
-        Rng: RngCore,
+        RNG: Rng,
         F: FnOnce(Frame<'_>) -> Result<OnFrame<'_>, ProtocolError> + 'static,
     {
         let frame = match framez::functions::maybe_next(read_state, codec, inner).await {
@@ -54,7 +54,7 @@ impl ReadAutoCaller {
             Err(err) => return Some(Err(Error::Read(ReadError::Protocol(err)))),
         };
 
-        WebSocketCore::<RW, Rng>::on_frame(fragments_state, frame)
+        WebSocketCore::<RW, RNG>::on_frame(fragments_state, frame)
             .map(|result| result.map_err(Error::from))
     }
 }
@@ -64,10 +64,10 @@ pub struct ReadCaller;
 
 impl ReadCaller {
     #[allow(clippy::too_many_arguments)]
-    pub async fn call<'this, RW, Rng>(
+    pub async fn call<'this, RW, RNG>(
         &self,
         _auto: (),
-        codec: &mut FramesCodec<Rng>,
+        codec: &mut FramesCodec<RNG>,
         inner: &mut RW,
         read_state: &'this mut ReadState<'_>,
         _write_state: &mut WriteState<'_>,
@@ -84,13 +84,13 @@ impl ReadCaller {
             None => return None,
         };
 
-        WebSocketCore::<RW, Rng>::on_frame(fragments_state, frame)
+        WebSocketCore::<RW, RNG>::on_frame(fragments_state, frame)
             .map(|result| result.map_err(Error::from))
     }
 }
 
-pub async fn send<RW, Rng>(
-    codec: &mut FramesCodec<Rng>,
+pub async fn send<RW, RNG>(
+    codec: &mut FramesCodec<RNG>,
     inner: &mut RW,
     write_state: &mut WriteState<'_>,
     state: &mut ConnectionState,
@@ -98,7 +98,7 @@ pub async fn send<RW, Rng>(
 ) -> Result<(), Error<RW::Error>>
 where
     RW: Write,
-    Rng: RngCore,
+    RNG: Rng,
 {
     if state.closed {
         return Err(Error::Write(WriteError::ConnectionClosed));
@@ -113,8 +113,8 @@ where
     Ok(())
 }
 
-pub async fn send_fragmented<RW, Rng>(
-    codec: &mut FramesCodec<Rng>,
+pub async fn send_fragmented<RW, RNG>(
+    codec: &mut FramesCodec<RNG>,
     inner: &mut RW,
     write_state: &mut WriteState<'_>,
     state: &mut ConnectionState,
@@ -123,7 +123,7 @@ pub async fn send_fragmented<RW, Rng>(
 ) -> Result<(), Error<RW::Error>>
 where
     RW: Write,
-    Rng: RngCore,
+    RNG: Rng,
 {
     if state.closed {
         return Err(Error::Write(WriteError::ConnectionClosed));

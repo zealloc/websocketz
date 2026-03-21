@@ -3,7 +3,7 @@ use framez::{
     Framed,
     state::{ReadState, ReadWriteState, WriteState},
 };
-use rand::RngCore;
+use rand_core::Rng;
 
 use crate::{
     FragmentsState, Frame, FramesCodec, Message, OnFrame, WebSocketCore,
@@ -19,16 +19,16 @@ use crate::{
 /// - `auto_pong`: `true`
 /// - `auto_close`: `true`
 #[derive(Debug)]
-pub struct WebSocket<'buf, RW, Rng> {
+pub struct WebSocket<'buf, RW, RNG> {
     #[doc(hidden)]
-    pub core: WebSocketCore<'buf, RW, Rng>,
+    pub core: WebSocketCore<'buf, RW, RNG>,
 }
 
-impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
+impl<'buf, RW, RNG> WebSocket<'buf, RW, RNG> {
     /// Creates a new [`WebSocket`] client after a successful handshake.
     pub const fn client(
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_buffer: &'buf mut [u8],
@@ -47,7 +47,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     /// Creates a new [`WebSocket`] server after a successful handshake.
     pub const fn server(
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_buffer: &'buf mut [u8],
@@ -70,14 +70,14 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     pub async fn connect<const N: usize>(
         options: ConnectOptions<'_, '_>,
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_buffer: &'buf mut [u8],
     ) -> Result<Self, Error<RW::Error>>
     where
         RW: Read + Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         Ok(Self::connect_with::<N, _, _, _>(
             options,
@@ -99,7 +99,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     pub async fn connect_with<const N: usize, F, T, E>(
         options: ConnectOptions<'_, '_>,
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_buffer: &'buf mut [u8],
@@ -108,7 +108,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     where
         F: for<'a> Fn(&Response<'a, N>) -> Result<T, E>,
         RW: Read + Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         Self::client(inner, rng, read_buffer, write_buffer, fragments_buffer)
             .client_handshake::<N, _, _, _>(options, on_response)
@@ -122,7 +122,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     pub async fn accept<const N: usize>(
         options: AcceptOptions<'_, '_>,
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_buffer: &'buf mut [u8],
@@ -150,7 +150,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     pub async fn accept_with<const N: usize, F, T, E>(
         options: AcceptOptions<'_, '_>,
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_buffer: &'buf mut [u8],
@@ -211,7 +211,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     where
         F: for<'a> Fn(&Response<'a, N>) -> Result<T, E>,
         RW: Read + Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         let (core, custom) = self
             .core
@@ -242,7 +242,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     pub async fn send(&mut self, message: Message<'_>) -> Result<(), Error<RW::Error>>
     where
         RW: Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         self.core.send(message).await
     }
@@ -255,7 +255,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     ) -> Result<(), Error<RW::Error>>
     where
         RW: Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         self.core.send_fragmented(message, fragment_size).await
     }
@@ -268,7 +268,7 @@ impl<'buf, RW, Rng> WebSocket<'buf, RW, Rng> {
     pub fn split_with<F, R, W>(
         self,
         split: F,
-    ) -> (WebSocketRead<'buf, R>, WebSocketWrite<'buf, W, Rng>)
+    ) -> (WebSocketRead<'buf, R>, WebSocketWrite<'buf, W, RNG>)
     where
         F: FnOnce(RW) -> (R, W),
     {
@@ -394,27 +394,27 @@ impl<'buf, RW> WebSocketRead<'buf, RW> {
 
 /// Write half of a WebSocket connection.
 #[derive(Debug)]
-pub struct WebSocketWrite<'buf, RW, Rng> {
+pub struct WebSocketWrite<'buf, RW, RNG> {
     #[doc(hidden)]
-    pub core: WebSocketCore<'buf, RW, Rng>,
+    pub core: WebSocketCore<'buf, RW, RNG>,
 }
 
-impl<'buf, RW, Rng> WebSocketWrite<'buf, RW, Rng> {
-    const fn new_from_framed(framed: Framed<'buf, FramesCodec<Rng>, RW>) -> Self {
+impl<'buf, RW, RNG> WebSocketWrite<'buf, RW, RNG> {
+    const fn new_from_framed(framed: Framed<'buf, FramesCodec<RNG>, RW>) -> Self {
         Self {
             core: WebSocketCore::new_from_framed(framed, FragmentsState::empty()),
         }
     }
 
     /// Creates a new [`WebSocketWrite`] client after a successful handshake.
-    pub const fn client(inner: RW, rng: Rng, write_buffer: &'buf mut [u8]) -> Self {
+    pub const fn client(inner: RW, rng: RNG, write_buffer: &'buf mut [u8]) -> Self {
         Self {
             core: WebSocketCore::client(inner, rng, &mut [], write_buffer, FragmentsState::empty()),
         }
     }
 
     /// Creates a new [`WebSocketWrite`] server after a successful handshake.
-    pub const fn server(inner: RW, rng: Rng, write_buffer: &'buf mut [u8]) -> Self {
+    pub const fn server(inner: RW, rng: RNG, write_buffer: &'buf mut [u8]) -> Self {
         Self {
             core: WebSocketCore::server(inner, rng, &mut [], write_buffer, FragmentsState::empty()),
         }
@@ -442,7 +442,7 @@ impl<'buf, RW, Rng> WebSocketWrite<'buf, RW, Rng> {
     pub async fn send(&mut self, message: Message<'_>) -> Result<(), Error<RW::Error>>
     where
         RW: Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         self.core.send(message).await
     }
@@ -455,7 +455,7 @@ impl<'buf, RW, Rng> WebSocketWrite<'buf, RW, Rng> {
     ) -> Result<(), Error<RW::Error>>
     where
         RW: Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         self.core.send_fragmented(message, fragment_size).await
     }

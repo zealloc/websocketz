@@ -2,7 +2,7 @@ use base64::{Engine as _, engine::general_purpose};
 use embedded_io_async::{Read, Write};
 use framez::Framed;
 use httparse::Header;
-use rand::RngCore;
+use rand_core::Rng;
 
 use sha1::{Digest, Sha1};
 
@@ -87,16 +87,16 @@ impl ConnectionState {
 
 #[derive(Debug)]
 #[doc(hidden)]
-pub struct WebSocketCore<'buf, RW, Rng> {
-    pub framed: Framed<'buf, FramesCodec<Rng>, RW>,
+pub struct WebSocketCore<'buf, RW, RNG> {
+    pub framed: Framed<'buf, FramesCodec<RNG>, RW>,
     pub fragments_state: FragmentsState<'buf>,
     pub state: ConnectionState,
 }
 
-impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
+impl<'buf, RW, RNG> WebSocketCore<'buf, RW, RNG> {
     #[inline]
     const fn from_framed(
-        framed: Framed<'buf, FramesCodec<Rng>, RW>,
+        framed: Framed<'buf, FramesCodec<RNG>, RW>,
         fragments_state: FragmentsState<'buf>,
     ) -> Self {
         Self {
@@ -108,7 +108,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
 
     #[inline]
     pub(crate) const fn new_from_framed(
-        framed: Framed<'buf, FramesCodec<Rng>, RW>,
+        framed: Framed<'buf, FramesCodec<RNG>, RW>,
         fragments_state: FragmentsState<'buf>,
     ) -> Self {
         Self::from_framed(framed, fragments_state)
@@ -117,7 +117,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
     #[inline]
     const fn new(
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_state: FragmentsState<'buf>,
@@ -131,7 +131,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
     #[inline]
     pub(crate) const fn client(
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_state: FragmentsState<'buf>,
@@ -142,7 +142,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
     #[inline]
     pub(crate) const fn server(
         inner: RW,
-        rng: Rng,
+        rng: RNG,
         read_buffer: &'buf mut [u8],
         write_buffer: &'buf mut [u8],
         fragments_state: FragmentsState<'buf>,
@@ -200,7 +200,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
 
     fn generate_sec_key(&mut self) -> [u8; 24]
     where
-        Rng: RngCore,
+        RNG: Rng,
     {
         let mut key: [u8; 16] = [0; 16];
 
@@ -246,7 +246,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
     where
         F: for<'a> Fn(&Response<'a, N>) -> Result<T, E>,
         RW: Read + Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         let sec_key = self.generate_sec_key();
 
@@ -601,7 +601,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
     pub(crate) async fn send(&mut self, message: Message<'_>) -> Result<(), Error<RW::Error>>
     where
         RW: Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         crate::functions::send(
             &mut self.framed.core.codec,
@@ -620,7 +620,7 @@ impl<'buf, RW, Rng> WebSocketCore<'buf, RW, Rng> {
     ) -> Result<(), Error<RW::Error>>
     where
         RW: Write,
-        Rng: RngCore,
+        RNG: Rng,
     {
         crate::functions::send_fragmented(
             &mut self.framed.core.codec,

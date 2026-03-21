@@ -1,6 +1,6 @@
 use framez::{decode::Decoder, encode::Encoder};
-use rand::Rng;
-use rand_core::RngCore;
+use rand::RngExt;
+use rand_core::Rng;
 
 use crate::{
     Frame, FrameMut, Header, Message, OpCode,
@@ -241,7 +241,7 @@ impl<'buf, R> Decoder<'buf> for FramesCodec<R> {
     }
 }
 
-impl<R: RngCore> FramesCodec<R> {
+impl<R: Rng> FramesCodec<R> {
     #[inline(always)]
     fn encode_inner<F>(
         &mut self,
@@ -287,7 +287,7 @@ impl<R: RngCore> FramesCodec<R> {
     }
 }
 
-impl<R: RngCore> Encoder<Message<'_>> for FramesCodec<R> {
+impl<R: Rng> Encoder<Message<'_>> for FramesCodec<R> {
     type Error = FrameEncodeError;
 
     fn encode(&mut self, item: Message, dst: &mut [u8]) -> Result<usize, Self::Error> {
@@ -301,7 +301,7 @@ impl<R: RngCore> Encoder<Message<'_>> for FramesCodec<R> {
     }
 }
 
-impl<R: RngCore> Encoder<Frame<'_>> for FramesCodec<R> {
+impl<R: Rng> Encoder<Frame<'_>> for FramesCodec<R> {
     type Error = FrameEncodeError;
 
     fn encode(&mut self, item: Frame, dst: &mut [u8]) -> Result<usize, Self::Error> {
@@ -434,7 +434,10 @@ mod tests {
     }
 
     mod encode {
-        use rand::{SeedableRng, rngs::StdRng};
+        use rand::{
+            SeedableRng,
+            rngs::{StdRng, SysRng},
+        };
 
         use super::*;
 
@@ -443,7 +446,7 @@ mod tests {
             let dst = &mut [0u8; 16];
             let message = Message::Binary(&[0; 24]);
 
-            let mut codec = FramesCodec::new(StdRng::from_os_rng());
+            let mut codec = FramesCodec::new(StdRng::try_from_rng(&mut SysRng).unwrap());
 
             let error = codec.encode(message, dst).unwrap_err();
 

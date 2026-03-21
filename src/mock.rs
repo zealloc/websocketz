@@ -3,7 +3,7 @@
 use core::convert::Infallible;
 
 use embedded_io_async::{ErrorType, Read, Write};
-use rand_core::RngCore;
+use rand_core::TryRng;
 
 #[derive(Debug)]
 pub struct Noop;
@@ -22,16 +22,24 @@ impl Write for Noop {
     async fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         Ok(buf.len())
     }
+
+    async fn flush(&mut self) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
-impl RngCore for Noop {
-    fn next_u32(&mut self) -> u32 {
-        0
+impl TryRng for Noop {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(0)
     }
 
-    fn next_u64(&mut self) -> u64 {
-        0
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(0)
     }
 
-    fn fill_bytes(&mut self, _dst: &mut [u8]) {}
+    fn try_fill_bytes(&mut self, _dst: &mut [u8]) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }

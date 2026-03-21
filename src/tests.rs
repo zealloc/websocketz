@@ -1,5 +1,8 @@
 use embedded_io_adapters::tokio_1::FromTokio;
-use rand::{SeedableRng, rngs::StdRng};
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 
 use crate::{CloseCode, Message, WebSocket, next};
 
@@ -64,7 +67,7 @@ mod macros {
 
         let mut websocketz = WebSocket::client(
             FromTokio::new(stream),
-            StdRng::from_os_rng(),
+            StdRng::try_from_rng(&mut SysRng).unwrap(),
             read_buf,
             write_buf,
             fragments_buf,
@@ -125,7 +128,7 @@ mod client {
         let client = async move {
             let mut websocketz = WebSocket::client(
                 FromTokio::new(client),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -188,7 +191,7 @@ mod client {
         let client = async move {
             let mut websocketz = WebSocket::client(
                 FromTokio::new(client),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -246,7 +249,7 @@ mod client {
         let client = async move {
             let mut websocketz = WebSocket::client(
                 FromTokio::new(client),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -321,7 +324,7 @@ mod client {
                     match WebSocket::connect::<16>(
                         ConnectOptions::default(),
                         FromTokio::new(client),
-                        StdRng::from_os_rng(),
+                        StdRng::try_from_rng(&mut SysRng).unwrap(),
                         read_buf,
                         write_buf,
                         fragments_buf,
@@ -406,7 +409,7 @@ mod client {
                 let _ = WebSocket::accept_with(
                     AcceptOptions::default(),
                     FromTokio::new(server),
-                    StdRng::from_os_rng(),
+                    StdRng::try_from_rng(&mut SysRng).unwrap(),
                     read_buf,
                     write_buf,
                     fragments_buf,
@@ -423,7 +426,7 @@ mod client {
                 match WebSocket::connect::<16>(
                     ConnectOptions::default(),
                     FromTokio::new(client),
-                    StdRng::from_os_rng(),
+                    StdRng::try_from_rng(&mut SysRng).unwrap(),
                     read_buf,
                     write_buf,
                     fragments_buf,
@@ -481,7 +484,7 @@ mod client {
                 let mut websocketz = WebSocket::connect::<16>(
                     ConnectOptions::default(),
                     FromTokio::new(client),
-                    StdRng::from_os_rng(),
+                    StdRng::try_from_rng(&mut SysRng).unwrap(),
                     read_buf,
                     write_buf,
                     fragments_buf,
@@ -547,7 +550,7 @@ mod server {
         let server = async move {
             let mut websocketz = WebSocket::server(
                 FromTokio::new(server),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -609,7 +612,7 @@ mod server {
         let server = async move {
             let mut websocketz = WebSocket::server(
                 FromTokio::new(server),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -695,7 +698,7 @@ mod server {
         let server = async move {
             let mut websocketz = WebSocket::server(
                 FromTokio::new(server),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -738,7 +741,7 @@ mod server {
                     match WebSocket::accept::<16>(
                         AcceptOptions::default(),
                         FromTokio::new(server),
-                        StdRng::from_os_rng(),
+                        StdRng::try_from_rng(&mut SysRng).unwrap(),
                         read_buf,
                         write_buf,
                         fragments_buf,
@@ -822,7 +825,7 @@ mod server {
             match WebSocket::accept::<16>(
                 AcceptOptions::default(),
                 FromTokio::new(server),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -852,7 +855,7 @@ mod server {
                 let mut websocketz = WebSocket::accept::<16>(
                     AcceptOptions::default(),
                     FromTokio::new(server),
-                    StdRng::from_os_rng(),
+                    StdRng::try_from_rng(&mut SysRng).unwrap(),
                     read_buf,
                     write_buf,
                     fragments_buf,
@@ -931,7 +934,7 @@ mod fragmentation {
 
         let mut websocketz = WebSocket::client(
             FromTokio::new(client),
-            StdRng::from_os_rng(),
+            StdRng::try_from_rng(&mut SysRng).unwrap(),
             read_buf,
             write_buf,
             fragments_buf,
@@ -958,7 +961,7 @@ mod fragmentation {
 
         let mut websocketz = WebSocket::client(
             FromTokio::new(client),
-            StdRng::from_os_rng(),
+            StdRng::try_from_rng(&mut SysRng).unwrap(),
             read_buf,
             write_buf,
             fragments_buf,
@@ -1021,7 +1024,7 @@ mod auto {
 
             let mut websocketz = WebSocket::client(
                 FromTokio::new(client),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -1049,7 +1052,7 @@ mod auto {
 
             let mut websocketz = WebSocket::server(
                 FromTokio::new(server),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -1072,7 +1075,7 @@ mod auto {
 
             let mut websocketz = WebSocket::client(
                 FromTokio::new(client),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -1115,7 +1118,7 @@ mod auto {
 
             let mut websocketz = WebSocket::server(
                 FromTokio::new(server),
-                StdRng::from_os_rng(),
+                StdRng::try_from_rng(&mut SysRng).unwrap(),
                 read_buf,
                 write_buf,
                 fragments_buf,
@@ -1154,7 +1157,7 @@ mod protocol {
 
                 let mut websocketz = WebSocket::client(
                     FromTokio::new(client),
-                    StdRng::from_os_rng(),
+                    StdRng::try_from_rng(&mut SysRng).unwrap(),
                     read_buf,
                     write_buf,
                     fragments_buf,

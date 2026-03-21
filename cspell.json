@@ -23,6 +23,7 @@
         "nextest",
         "nostartfiles",
         "println",
+        "reborrow",
         "reportfile",
         "repr",
         "rngs",
@@ -42,7 +43,9 @@
         "WSSERVER",
         "wstest",
         "xtensa",
-        "zerocopy"
+        "zerocopy",
+        "nvim",
+        "MSVC"
     ],
     "ignorePaths": [
         "target",
