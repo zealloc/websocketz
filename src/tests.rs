@@ -1285,7 +1285,7 @@ mod cancellation {
         struct Reader<'a> {
             buf: &'a [u8],
             bytes_per_read_call: usize,
-            yield_next: bool, // Add this flag
+            yield_next: bool,
         }
 
         impl ErrorType for Reader<'_> {
