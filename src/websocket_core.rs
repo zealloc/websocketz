@@ -186,7 +186,7 @@ impl<'buf, RW, RNG> WebSocketCore<'buf, RW, RNG> {
         self.framed.inner_mut()
     }
 
-    /// Consumes the [`WebsocketsCore`] and returns the reader/writer.
+    /// Consumes the [`WebSocketCore`] and returns the reader/writer.
     #[inline]
     pub(crate) fn into_inner(self) -> RW {
         self.framed.into_parts().1
