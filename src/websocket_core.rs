@@ -136,7 +136,7 @@ impl<'buf, RW, RNG> WebSocketCore<'buf, RW, RNG> {
         write_buffer: &'buf mut [u8],
         fragments_state: FragmentsState<'buf>,
     ) -> Self {
-        Self::new(inner, rng, read_buffer, write_buffer, fragments_state).into_server()
+        Self::new(inner, rng, read_buffer, write_buffer, fragments_state).into_client()
     }
 
     #[inline]
@@ -147,18 +147,18 @@ impl<'buf, RW, RNG> WebSocketCore<'buf, RW, RNG> {
         write_buffer: &'buf mut [u8],
         fragments_state: FragmentsState<'buf>,
     ) -> Self {
-        Self::new(inner, rng, read_buffer, write_buffer, fragments_state).into_client()
+        Self::new(inner, rng, read_buffer, write_buffer, fragments_state).into_server()
     }
 
     #[inline]
-    const fn into_client(mut self) -> Self {
+    const fn into_server(mut self) -> Self {
         self.framed.codec_mut().set_mask(false);
         self.framed.codec_mut().set_unmask(true);
         self
     }
 
     #[inline]
-    const fn into_server(mut self) -> Self {
+    const fn into_client(mut self) -> Self {
         self.framed.codec_mut().set_mask(true);
         self.framed.codec_mut().set_unmask(false);
         self
