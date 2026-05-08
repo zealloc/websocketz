@@ -1,3 +1,9 @@
+use core::{
+    convert::Infallible,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use embedded_io_adapters::tokio_1::FromTokio;
 use rand::{
     SeedableRng,
@@ -1256,5 +1262,136 @@ mod protocol {
         ];
 
         quick_protocol_error!(FRAME, InvalidContinuationFrame);
+    }
+}
+
+mod cancellation {
+    use super::*;
+
+    #[tokio::test]
+    async fn read_cancellation() {
+        use embedded_io_async::{ErrorType, Read, Write};
+        use pin_project_lite::pin_project;
+
+        let message = "hello hello hello hello hello hello hello hello hello hello hello hello";
+
+        let client_frame = &[
+            129, 199, 50, 247, 26, 102, 90, 146, 118, 10, 93, 215, 114, 3, 94, 155, 117, 70, 90,
+            146, 118, 10, 93, 215, 114, 3, 94, 155, 117, 70, 90, 146, 118, 10, 93, 215, 114, 3, 94,
+            155, 117, 70, 90, 146, 118, 10, 93, 215, 114, 3, 94, 155, 117, 70, 90, 146, 118, 10,
+            93, 215, 114, 3, 94, 155, 117, 70, 90, 146, 118, 10, 93, 215, 114, 3, 94, 155, 117,
+        ];
+
+        struct Reader<'a> {
+            buf: &'a [u8],
+            bytes_per_read_call: usize,
+            yield_next: bool, // Add this flag
+        }
+
+        impl ErrorType for Reader<'_> {
+            type Error = Infallible;
+        }
+
+        impl Write for Reader<'_> {
+            async fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+                Ok(buf.len())
+            }
+
+            async fn flush(&mut self) -> Result<(), Self::Error> {
+                Ok(())
+            }
+        }
+
+        impl Read for Reader<'_> {
+            async fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+                if self.yield_next {
+                    self.yield_next = false;
+                    tokio::task::yield_now().await;
+                }
+
+                let bytes_to_read = self.bytes_per_read_call.min(self.buf.len());
+                if bytes_to_read == 0 {
+                    return Ok(0);
+                }
+
+                buf[..bytes_to_read].copy_from_slice(&self.buf[..bytes_to_read]);
+                self.buf = &self.buf[bytes_to_read..];
+
+                self.yield_next = true;
+
+                Ok(bytes_to_read)
+            }
+        }
+
+        let reader = Reader {
+            buf: client_frame,
+            bytes_per_read_call: 8,
+            yield_next: false,
+        };
+
+        pin_project! {
+            struct DropFutureCounter<'a, F> {
+                count: &'a mut usize,
+                #[pin]
+                f: F,
+            }
+
+            impl<F> PinnedDrop for DropFutureCounter<'_, F> {
+                fn drop(this: Pin<&mut Self>) {
+                    **this.project().count += 1;
+                }
+            }
+        }
+
+        impl<'a, F> DropFutureCounter<'a, F> {
+            fn new(count: &'a mut usize, f: F) -> Self {
+                Self { f, count }
+            }
+        }
+
+        impl<'a, F: Future> Future for DropFutureCounter<'a, F> {
+            type Output = F::Output;
+
+            fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+                let this = self.project();
+                this.f.poll(cx)
+            }
+        }
+
+        let read_buf = &mut [0u8; SIZE];
+        let write_buf = &mut [0u8; SIZE];
+        let fragments_buf = &mut [0u8; SIZE];
+
+        let mut websocketz = WebSocket::server(
+            reader,
+            StdRng::try_from_rng(&mut SysRng).unwrap(),
+            read_buf,
+            write_buf,
+            fragments_buf,
+        );
+
+        let mut drop_count = 0usize;
+
+        loop {
+            let fut = DropFutureCounter::new(&mut drop_count, async {
+                match next!(websocketz) {
+                    Some(Ok(Message::Text(payload))) => {
+                        assert_eq!(payload, message);
+                    }
+                    message => panic!("Unexpected message: {message:?}"),
+                }
+            });
+
+            tokio::select! {
+                biased;
+                _ = fut => break,
+                _ = async {} => {}
+            }
+        }
+
+        assert!(
+            drop_count > 0,
+            "Expected future to be dropped at least once, but it was not dropped"
+        );
     }
 }

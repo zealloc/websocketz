@@ -434,6 +434,8 @@ mod tests {
     }
 
     mod encode {
+        use std::println;
+
         use rand::{
             SeedableRng,
             rngs::{StdRng, SysRng},
@@ -451,6 +453,24 @@ mod tests {
             let error = codec.encode(message, dst).unwrap_err();
 
             assert!(matches!(error, FrameEncodeError::BufferTooSmall));
+        }
+
+        #[test]
+        #[ignore = "print"]
+        fn print() {
+            let dst = &mut [0u8; 1024];
+            let message = Message::Text(
+                "hello hello hello hello hello hello hello hello hello hello hello hello",
+            );
+
+            let mut codec =
+                FramesCodec::new(StdRng::try_from_rng(&mut SysRng).unwrap()).into_client();
+
+            let size = codec
+                .encode(message, dst)
+                .expect("Failed to encode message");
+
+            println!("Encoded frame ({} bytes): {:?}", size, &dst[..size]);
         }
     }
 }
